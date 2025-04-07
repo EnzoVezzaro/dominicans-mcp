@@ -28,6 +28,11 @@ export default function ChatPage() {
   const [file, setFile] = useState<File | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatCreatedRef = useRef(false)
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // Get chat store functions
   const { getChat, createChat, updateChat } = useChatStore()
@@ -96,9 +101,11 @@ export default function ChatPage() {
     }
   }, [messages])
 
+  if (!isClient) return null
+
   if (!mcp) {
     return (
-      <div className="container mx-auto py-8 px-4 text-center">
+      <div className="container mx-auto py-8 px-4 text-center" suppressHydrationWarning>
         <h1 className="text-2xl font-bold mb-4">MCP not found</h1>
         <Button onClick={() => router.push("/")} variant="outline">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to home
@@ -247,4 +254,3 @@ export default function ChatPage() {
     </div>
   )
 }
-

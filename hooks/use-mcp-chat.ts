@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from "react"
+import type { CoreMessage } from "ai" // Import CoreMessage
 import type { ChatMessage, MCPCapabilities } from "@/lib/types"
 import { mcpList } from "@/lib/mcp-data"
 import { useSettings } from "./use-settings"
 import { createMCPClient } from "@/lib/mcp-client"
+// Removed: import { readStreamableValue } from "ai/rsc"
 
 export function useMCPChat(mcpId: string, initialMessages: ChatMessage[] = []) {
   const { settings } = useSettings()
@@ -24,10 +26,8 @@ export function useMCPChat(mcpId: string, initialMessages: ChatMessage[] = []) {
       try {
         setIsLoading(true)
 
-        // Create MCP client
+        // Create MCP client (remove mcpId and connectionDetails)
         mcpClientRef.current = createMCPClient({
-          mcpId: mcp.id,
-          connectionDetails: mcp.connectionDetails,
           provider: settings.provider,
           model: settings.model,
           apiKey: settings.apiKey,
@@ -57,46 +57,92 @@ export function useMCPChat(mcpId: string, initialMessages: ChatMessage[] = []) {
 
   const sendMessage = useCallback(
     async (content: string, file?: File) => {
-      if (!mcp || !mcpClientRef.current) {
-        setError("MCP client not initialized. Please check your settings.")
+      if (!mcp) {
+        setError("MCP configuration not found")
         return
+      }
+      
+      if (!mcpClientRef.current) {
+        // Initialize client if not already done (remove mcpId and connectionDetails)
+        try {
+          mcpClientRef.current = createMCPClient({
+            provider: settings.provider,
+            model: settings.model,
+            apiKey: settings.apiKey,
+          })
+        } catch (err) {
+          console.error("Error re-initializing MCP:", err)
+          setError("Failed to re-initialize MCP connection")
+          return
+        }
       }
 
       // Add user message
       const userMessage: ChatMessage = {
         role: "user",
         content,
-        file: file ? URL.createObjectURL(file) : undefined,
+        // File handling needs separate implementation if required by the model/provider
+        // file: file ? URL.createObjectURL(file) : undefined,
       }
 
-      setMessages((prev) => [...prev, userMessage])
+      const updatedMessages = [...messages, userMessage]
+      setMessages(updatedMessages)
       setIsLoading(true)
       setError(null)
+
+      // Map internal ChatMessage[] to CoreMessage[] for the AI SDK
+      const coreMessages: CoreMessage[] = updatedMessages
+        .filter((msg) => msg.role === "user" || msg.role === "assistant") // Filter relevant roles
+        .map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+          // Add tool calls/results here if needed
+        }))
 
       try {
         // Create a placeholder for the assistant's response
         const assistantMessageId = Date.now().toString()
         setMessages((prev) => [...prev, { role: "assistant", content: "", id: assistantMessageId }])
 
-        // Stream the response
-        const stream = await mcpClientRef.current.sendMessage(content, file)
+        // Stream the response - pass the CoreMessage array
+        const stream = await mcpClientRef.current.sendMessage(coreMessages)
 
-        // Process the stream
-        for await (const chunk of stream) {
-          setMessages((prev) =>
-            prev.map((msg) => (msg.id === assistantMessageId ? { ...msg, content: msg.content + chunk } : msg)),
-          )
+        // Process the stream (it yields strings directly)
+        const reader = stream.getReader();
+        let accumulatedContent = "";
+
+        try {
+            while (true) {
+                const { value, done } = await reader.read(); // value is a string chunk
+                if (done) {
+                    break; // Exit the loop when the stream is finished
+                }
+
+                // Append the string chunk
+                accumulatedContent += value;
+
+                // Update the message content incrementally
+                setMessages((prev) =>
+                    prev.map((msg) =>
+                        msg.id === assistantMessageId ? { ...msg, content: accumulatedContent } : msg,
+                    ),
+                );
+            }
+        } finally {
+            // Ensure the reader lock is released, regardless of errors
+            reader.releaseLock();
         }
-      } catch (err) {
-        console.error("Error sending message to MCP:", err)
-        setError("Failed to send message. Please try again.")
 
-        // Add error message
+      } catch (err) {
+        console.error("MCP communication error:", err)
+        const errorMsg = err instanceof Error ? err.message : "MCP connection failed"
+        setError(`MCP Error: ${errorMsg}`)
+
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            content: "Sorry, there was an error connecting to this MCP. Please try again later.",
+            content: `MCP Error: ${errorMsg}`
           },
         ])
       } finally {
@@ -115,4 +161,3 @@ export function useMCPChat(mcpId: string, initialMessages: ChatMessage[] = []) {
     error,
   }
 }
-

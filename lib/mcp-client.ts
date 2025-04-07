@@ -1,122 +1,125 @@
 "use client"
 
-import type { MCPConnectionDetails, MCPCapabilities } from "./types"
+import { streamText, type CoreMessage } from "ai"
+import { createOpenAI } from "@ai-sdk/openai"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
+import { createAnthropic } from "@ai-sdk/anthropic"
+import { createGroq } from "@ai-sdk/groq"
+import { createOpenRouter } from "@openrouter/ai-sdk-provider"
+import type { MCPCapabilities } from "./types"
+
+// Define the structure for provider options, including API keys
+interface ProviderOptions {
+  apiKey?: string
+  baseURL?: string // Optional: For self-hosted or proxy setups
+}
+
+// Map provider IDs to their corresponding AI SDK provider factory functions
+const providerFactoryMap: Record<string, any> = {
+  openai: createOpenAI,
+  google: createGoogleGenerativeAI,
+  anthropic: createAnthropic,
+  qroq: createGroq, // Assuming 'qroq' uses the Groq SDK
+  openrouter: createOpenRouter,
+  // Add DeepSeek and xAI if/when official AI SDK providers are available
+  // deepseek: createDeepSeek, // Placeholder
+  // xai: createXAI, // Placeholder
+}
 
 interface MCPClientOptions {
-  mcpId: string
-  connectionDetails: MCPConnectionDetails
   provider: string
   model: string
   apiKey: string
+  // mcpId and connectionDetails are no longer needed for this client-side implementation
 }
 
-// This is a simplified implementation for demonstration
-// In a real app, you would use the AI SDK's MCP client
 export function createMCPClient(options: MCPClientOptions) {
-  const { mcpId, connectionDetails, provider, model, apiKey } = options
+  const { provider: providerId, model, apiKey } = options
 
-  // Mock capabilities based on MCP ID
-  const mockCapabilities: Record<string, MCPCapabilities> = {
-    "legal-advisor": {
-      hasVision: false,
-      hasFileUpload: false,
-      hasToolCalling: true,
-      supportedTools: ["search_legal_database", "calculate_legal_fees"],
-    },
-    "tax-consultant": {
-      hasVision: false,
-      hasFileUpload: true,
-      hasToolCalling: true,
-      supportedTools: ["calculate_tax", "search_tax_regulations"],
-    },
-    "immigration-advisor": {
-      hasVision: true,
-      hasFileUpload: true,
-      hasToolCalling: true,
-      supportedTools: ["check_visa_requirements", "document_verification"],
-    },
-    "business-consultant": {
-      hasVision: false,
-      hasFileUpload: true,
-      hasToolCalling: true,
-      supportedTools: ["business_plan_analysis", "market_research"],
-    },
-    "property-advisor": {
-      hasVision: true,
-      hasFileUpload: true,
-      hasToolCalling: true,
-      supportedTools: ["property_valuation", "location_analysis"],
-    },
-    "labor-advisor": {
-      hasVision: false,
-      hasFileUpload: true,
-      hasToolCalling: true,
-      supportedTools: ["contract_analysis", "compensation_calculator"],
-    },
+  const getProviderInstance = () => {
+    const providerFactory = providerFactoryMap[providerId]
+    if (!providerFactory) {
+      throw new Error(`Unsupported provider: ${providerId}`)
+    }
+
+    // Configure the provider with the API key
+    // Note: Some providers might have different configuration methods
+    // This assumes a common pattern; adjust if needed per provider docs.
+    const providerOptions: ProviderOptions = {}
+    if (apiKey) {
+      providerOptions.apiKey = apiKey
+    }
+    // Add baseURL or other options if necessary for specific providers
+    // e.g., for OpenRouter, you might need to set baseURL
+
+    // Special handling for OpenRouter base URL and headers if needed
+    if (providerId === "openrouter") {
+      // OpenRouter often requires headers for API key and potentially site identification
+      // Check @openrouter/ai-sdk-provider docs for exact configuration
+      // Example (may need adjustment):
+      // providerOptions.headers = {
+      //   'Authorization': `Bearer ${apiKey}`,
+      //   'HTTP-Referer': 'YOUR_SITE_URL', // Optional but recommended
+      //   'X-Title': 'YOUR_SITE_NAME', // Optional but recommended
+      // };
+      // providerOptions.apiKey = undefined; // API key might be passed via headers instead
+      // OpenRouter specific: You might need to pass default headers here
+      // providerOptions.headers = { 'HTTP-Referer': 'YOUR_SITE_URL', 'X-Title': 'YOUR_SITE_NAME' };
+    }
+
+    // Create the provider instance
+    return providerFactory(providerOptions)
   }
 
-  // In a real implementation, this would connect to the MCP server
-  // and fetch the actual capabilities
   const getCapabilities = async (): Promise<MCPCapabilities> => {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    return (
-      mockCapabilities[mcpId] || {
-        hasVision: false,
-        hasFileUpload: false,
-        hasToolCalling: false,
-        supportedTools: [],
-      }
-    )
+    // TODO: Implement actual capability detection based on provider/model if possible
+    // For now, return default values
+    await new Promise((resolve) => setTimeout(resolve, 100)) // Simulate brief check
+    return {
+      hasVision: false, // Placeholder - depends on model
+      hasFileUpload: false, // Placeholder - depends on model/provider support
+      hasToolCalling: false, // Placeholder - depends on model/provider support
+      supportedTools: [], // Placeholder
+    }
   }
 
-  // In a real implementation, this would use the AI SDK to send messages to the MCP
-  const sendMessage = async (content: string, file?: File) => {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    // Mock responses based on MCP ID and content
-    const mcpData = mockResponses[mcpId] || []
-
-    // Find a matching response or use default
-    const lowercaseContent = content.toLowerCase()
-    const matchedResponse = mcpData.find((resp) =>
-      resp.keywords.some((keyword) => lowercaseContent.includes(keyword.toLowerCase())),
-    )
-
-    let responseContent = ""
-
-    if (matchedResponse) {
-      responseContent = matchedResponse.response
-    } else {
-      // Default response
-      responseContent = `Gracias por su mensaje. Como MCP especializado en ${mcpId.replace("-", " ")}, puedo ayudarle con consultas relacionadas. ¿Podría proporcionar más detalles sobre su solicitud?`
+  const sendMessage = async (messages: CoreMessage[]) => {
+    // Ensure messages is an array
+    if (!Array.isArray(messages)) {
+      console.error("Invalid messages format. Expected an array.")
+      throw new Error("Invalid messages format.")
     }
 
-    // If file is provided and MCP has vision capabilities
-    if (file && mockCapabilities[mcpId]?.hasVision) {
-      responseContent = `He recibido su imagen. ${responseContent}`
+    // Get the configured provider instance
+    const providerInstance = getProviderInstance()
+
+    // Ensure the provider instance and model are correctly structured for streamText
+    // The model identifier is typically passed as a string like 'openai:gpt-4o' or just 'gpt-4o'
+    // depending on how the provider instance is created and configured.
+    // The AI SDK aims for consistency, often just needing the model ID string.
+    const modelId = `${providerId}/${model}` // Or potentially just `model` if the provider handles it
+
+    try {
+      const result = await streamText({
+        model: providerInstance.chat(model), // Use the .chat() method of the provider instance
+        messages: messages,
+        // Add other parameters like system prompt, temperature, etc. if needed
+        // system: "You are a helpful assistant.",
+        // temperature: 0.7,
+      })
+
+      // Return the text stream
+      return result.textStream
+    } catch (error) {
+      console.error(`Error sending message via ${providerId} (${model}):`, error)
+      // Re-throw or handle error appropriately
+      throw error
     }
-
-    // Create a mock stream that yields chunks of the response
-    async function* streamResponse() {
-      const words = responseContent.split(" ")
-
-      for (const word of words) {
-        // Yield word + space
-        yield word + " "
-        // Random delay between 50-150ms
-        await new Promise((resolve) => setTimeout(resolve, 50 + Math.random() * 100))
-      }
-    }
-
-    return streamResponse()
   }
 
   const close = () => {
-    // Cleanup resources
-    console.log("Closing MCP client connection")
+    // No explicit connection to close in this client-side SDK model
+    console.log("MCP client cleanup (no-op for this implementation)")
   }
 
   return {
@@ -126,31 +129,9 @@ export function createMCPClient(options: MCPClientOptions) {
   }
 }
 
-// Mock responses for demonstration
-const mockResponses: Record<string, Array<{ keywords: string[]; response: string }>> = {
-  "legal-advisor": [
-    {
-      keywords: ["business", "registration", "register"],
-      response:
-        "Para registrar un negocio en la República Dominicana, necesitará:\n\n1. Un certificado de disponibilidad de nombre de ONAPI\n2. Estatutos de constitución\n3. Copias de identificación de los accionistas\n4. Registro fiscal (RNC)\n5. Registro comercial en la Cámara de Comercio\n\nEl proceso generalmente toma de 2 a 3 semanas y los costos varían según el tipo de entidad comercial.",
-    },
-    {
-      keywords: ["divorce", "marriage", "divorcio", "matrimonio"],
-      response:
-        "En la República Dominicana, los procedimientos de divorcio generalmente toman de 3 a 6 meses dependiendo de si es contencioso o no contencioso. Para un divorcio no contencioso, ambas partes deben estar de acuerdo en todos los términos. Los documentos requeridos incluyen certificado de matrimonio, documentos de identificación y una petición formal de divorcio presentada a través de un abogado. El proceso implica varias comparecencias ante el tribunal y los honorarios legales generalmente oscilan entre RD$15,000 y RD$50,000 dependiendo de la complejidad.",
-    },
-  ],
-  "tax-consultant": [
-    {
-      keywords: ["deadline", "income tax", "filing", "plazo", "impuesto sobre la renta", "declaración"],
-      response:
-        "En la República Dominicana, el plazo para presentar las declaraciones del impuesto sobre la renta personal es el 31 de marzo de cada año para el año fiscal anterior. Para las empresas, el plazo depende del cierre de su año fiscal, pero generalmente es 120 días después del cierre de su año fiscal. Las multas por presentación tardía comienzan en RD$10,371 más intereses sobre cualquier impuesto no pagado.",
-    },
-    {
-      keywords: ["vat", "itbis", "rate", "tasa"],
-      response:
-        "La tasa estándar de IVA (conocida como ITBIS - Impuesto sobre Transferencias de Bienes Industrializados y Servicios) en la República Dominicana es actualmente del 18%. Sin embargo, algunas necesidades básicas tienen una tasa reducida del 16%, y ciertos artículos como materiales educativos, alimentos básicos y medicamentos están exentos de IVA.",
-    },
-  ],
-}
-
+// Helper type for message structure (if not already defined elsewhere)
+// export interface CoreMessage {
+//   role: 'user' | 'assistant' | 'system' | 'tool';
+//   content: string;
+//   // Add tool_calls, tool_call_id etc. if using tool calling features
+// }

@@ -10,6 +10,7 @@ import { motion } from "framer-motion"
 import { mcpList } from "@/lib/mcp-data"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { TestMcpDialog } from "@/components/test-mcp-dialog"
 import { useTranslation } from "@/hooks/use-translation"
 import { useSidebar } from "@/hooks/use-sidebar"
 
@@ -29,6 +30,7 @@ export default function Home() {
     <div className={`max-w-7xl w-full py-8 px-4 transition-all duration-300 mx-auto ${isOpen ? 'ml-64' : 'ml-0'}`}>
       <header className="mb-12 text-center relative">
         <div className="absolute right-0 top-0 flex space-x-2">
+          <TestMcpDialog />
           <LanguageSwitcher />
           <SettingsDialog />
         </div>
