@@ -25,7 +25,7 @@ export default function RootLayout({
           <SettingsProvider>
             <main className="min-h-screen bg-background">
               <ChatSidebar />
-              <div className="ml-0 md:ml-72">{children}</div>
+              {children}
             </main>
           </SettingsProvider>
         </ThemeProvider>
