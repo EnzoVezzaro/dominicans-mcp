@@ -26,6 +26,7 @@ export const translations: Record<string, Record<string, string>> = {
     mcp_not_found: "MCP no encontrado",
     back_to_home: "Volver al inicio",
     upload_image: "Subir imagen",
+    home_description: "Descubre y conéctate con servidores del Protocolo de Contexto de Modelo para servicios dominicanos",
   },
   en: {
     search_placeholder: "Search MCPs...",
@@ -54,6 +55,6 @@ export const translations: Record<string, Record<string, string>> = {
     mcp_not_found: "MCP not found",
     back_to_home: "Back to home",
     upload_image: "Upload image",
+    home_description: "Discover and connect with Model Context Protocol servers for Dominican services",
   },
 }
-

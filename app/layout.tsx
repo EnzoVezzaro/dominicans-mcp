@@ -24,7 +24,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <SettingsProvider>
             <main className="min-h-screen bg-background">
-              <ChatSidebar />
+              {/* <ChatSidebar /> */}
               {children}
             </main>
           </SettingsProvider>

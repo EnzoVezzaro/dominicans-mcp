@@ -27,19 +27,19 @@ export default function Home() {
   )
 
   return (
-    <div className={`max-w-7xl w-full py-8 px-4 transition-all duration-300 mx-auto ${isOpen ? 'ml-64' : 'ml-0'}`}>
+    <div className={`max-w-7xl w-full py-8 px-4 transition-all duration-300 mx-auto ml-0`}>
       <header className="mb-12 text-center relative">
         <div className="absolute right-0 top-0 flex space-x-2">
-          <TestMcpDialog />
+          {/** <TestMcpDialog /> */}
           <LanguageSwitcher />
-          <SettingsDialog />
+          {/** <SettingsDialog /> */}
         </div>
 
         <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-emerald-600 to-teal-500 text-transparent bg-clip-text">
           Dominican MCP Explorer
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Discover and connect with Model Context Protocol servers for Dominican services
+          {t("home_description")}
         </p>
       </header>
 

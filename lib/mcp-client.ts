@@ -1,6 +1,6 @@
 "use client"
 
-import { streamText, type CoreMessage } from "ai"
+import { streamText, type CoreMessage, type ToolCall } from "ai";
 import { createOpenAI } from "@ai-sdk/openai"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { createAnthropic } from "@ai-sdk/anthropic"
@@ -30,7 +30,7 @@ interface MCPClientOptions {
   provider: string
   model: string
   apiKey: string
-  // mcpId and connectionDetails are no longer needed for this client-side implementation
+  mcp?: any
 }
 
 export function createMCPClient(options: MCPClientOptions) {
@@ -84,34 +84,48 @@ export function createMCPClient(options: MCPClientOptions) {
   }
 
   const sendMessage = async (messages: CoreMessage[]) => {
-    // Ensure messages is an array
     if (!Array.isArray(messages)) {
       console.error("Invalid messages format. Expected an array.")
       throw new Error("Invalid messages format.")
     }
 
-    // Get the configured provider instance
     const providerInstance = getProviderInstance()
 
-    // Ensure the provider instance and model are correctly structured for streamText
-    // The model identifier is typically passed as a string like 'openai:gpt-4o' or just 'gpt-4o'
-    // depending on how the provider instance is created and configured.
-    // The AI SDK aims for consistency, often just needing the model ID string.
-    const modelId = `${providerId}/${model}` // Or potentially just `model` if the provider handles it
-
     try {
+      console.log('this tools: ', options);
       const result = await streamText({
-        model: providerInstance.chat(model), // Use the .chat() method of the provider instance
+        model: providerInstance.chat(model),
         messages: messages,
-        // Add other parameters like system prompt, temperature, etc. if needed
-        // system: "You are a helpful assistant.",
-        // temperature: 0.7,
+        tools: {
+          [options.mcp.id]: {
+            description: options.mcp.description || 'MCP tool for legislative information',
+            parameters: {
+              type: 'object',
+              properties: {
+                chamber: {
+                  type: 'string',
+                  enum: ['senado', 'diputados'],
+                  description: 'Legislative chamber to query'
+                }
+              },
+              required: ['chamber'],
+              additionalProperties: false
+            },
+            execute: async (params) => {
+              console.log('here: ', params);
+              
+              // Implementation would call the MCP server
+              return { result: 'MCP tool executed' }
+            }
+          }
+        },
+        toolChoice: 'auto'
       })
-
-      // Return the text stream
-      return result.textStream
+      console.log('stream result:', result.textStream);
+      
+      return await result.textStream;
     } catch (error) {
-      console.error(`Error sending message via ${providerId} (${model}):`, error)
+      console.log(`Error sending message via ${providerId} (${model}):`, error)
       // Re-throw or handle error appropriately
       throw error
     }

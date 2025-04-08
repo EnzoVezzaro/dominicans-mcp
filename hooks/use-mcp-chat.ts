@@ -21,20 +21,23 @@ export function useMCPChat(mcpId: string, initialMessages: ChatMessage[] = []) {
   // Initialize MCP client and fetch capabilities
   useEffect(() => {
     if (!mcp || !settings.provider || !settings.model || !settings.apiKey) return
-
+    console.log('aqui: ', settings, mcp);
     const initMCP = async () => {
       try {
         setIsLoading(true)
-
+        
         // Create MCP client (remove mcpId and connectionDetails)
         mcpClientRef.current = createMCPClient({
           provider: settings.provider,
           model: settings.model,
           apiKey: settings.apiKey,
+          mcp: mcp
         })
 
         // Fetch capabilities
         const caps = await mcpClientRef.current.getCapabilities()
+        console.log('get cap: ', caps);
+        
         setCapabilities(caps)
         setError(null)
       } catch (err) {
@@ -62,13 +65,14 @@ export function useMCPChat(mcpId: string, initialMessages: ChatMessage[] = []) {
         return
       }
       
-      if (!mcpClientRef.current) {
+      if (!mcpClientRef.current) { 
         // Initialize client if not already done (remove mcpId and connectionDetails)
         try {
           mcpClientRef.current = createMCPClient({
             provider: settings.provider,
             model: settings.model,
             apiKey: settings.apiKey,
+            mcp: mcp
           })
         } catch (err) {
           console.error("Error re-initializing MCP:", err)
