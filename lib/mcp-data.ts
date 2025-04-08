@@ -6,6 +6,7 @@ export const mcpList: MCP[] = [
     name: "Legislator MCP",
     description: "Dominican Republic legislative information",
     type: "government",
+    github: "https://github.com/EnzoVezzaro/mcp-dominican-layer",
     status: "online",
     tags: ["legislative", "government"],
     connectionDetails: {

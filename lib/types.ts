@@ -2,6 +2,7 @@ export interface MCP {
   id: string
   name: string
   description: string
+  github: string
   type: string
   status: "online" | "offline" | "maintenance"
   tags: string[]
